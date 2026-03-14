@@ -1,0 +1,20 @@
+﻿# Сборка
+target/
+**/*.rlib
+**/*.dll
+**/*.exe
+**/*.pdb
+
+# Модели и данные
+*.gguf
+*.binvg
+*.bin
+models/
+llama/
+nano-vllm/
+__pycache__/
+*.pyc
+
+# Тестовые файлы
+verify.binvg
+test_*.binvg

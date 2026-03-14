@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS - Modular Assistant</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-robot"></i>
+                    <h1>JARVIS</h1>
+                </div>
+                <div class="system-status">
+                    <div class="status-indicator active"></div>
+                    <span>System Online</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h3>Core</h3>
+                    <ul>
+                        <li class="active" data-view="files">
+                            <i class="fas fa-folder"></i>
+                            <span>File Explorer</span>
+                        </li>
+                        <li data-view="system">
+                            <i class="fas fa-chart-line"></i>
+                            <span>System Monitor</span>
+                        </li>
+                        <li data-view="plugins">
+                            <i class="fas fa-puzzle-piece"></i>
+                            <span>Plugins</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Plugins</h3>
+                    <ul id="plugin-list">
+                        <!-- Plugins will be loaded dynamically -->
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Tools</h3>
+                    <ul>
+                        <li data-view="search">
+                            <i class="fas fa-search"></i>
+                            <span>Search</span>
+                        </li>
+                        <li data-view="terminal">
+                            <i class="fas fa-terminal"></i>
+                            <span>Terminal</span>
+                        </li>
+                        <li data-view="ai">
+                            <i class="fas fa-brain"></i>
+                            <span>AI Assistant</span>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="system-stats">
+                    <div class="stat">
+                        <div class="stat-label">CPU</div>
+                        <div class="stat-value" id="cpu-usage">0%</div>
+                        <div class="stat-bar">
+                            <div class="stat-fill" id="cpu-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">RAM</div>
+                        <div class="stat-value" id="ram-usage">0%</div>
+                        <div class="stat-bar">
+                            <div class="stat-fill" id="ram-bar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="breadcrumb" id="breadcrumb">
+                    <span class="breadcrumb-item" data-path="">JARVIS</span>
+                    <i class="fas fa-chevron-right"></i>
+                    <span class="breadcrumb-item" data-path="">Home</span>
+                </div>
+                
+                <div class="top-bar-actions">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="global-search" placeholder="Search files...">
+                    </div>
+                    <button class="btn btn-primary" id="new-file-btn">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </div>
+            </header>
+            
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- File Explorer View -->
+                <div class="view" id="view-files">
+                    <div class="view-header">
+                        <h2><i class="fas fa-folder"></i> File Explorer</h2>
+                        <div class="view-toolbar">
+                            <button class="toolbar-btn" id="back-btn" title="Back">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <button class="toolbar-btn" id="forward-btn" title="Forward">
+                                <i class="fas fa-arrow-right"></i>
+                            </button>
+                            <button class="toolbar-btn" id="up-btn" title="Up">
+                                <i class="fas fa-arrow-up"></i>
+                            </button>
+                            <button class="toolbar-btn" id="refresh-btn" title="Refresh">
+                                <i class="fas fa-sync-alt"></i>
+                            </button>
+                            <div class="toolbar-separator"></div>
+                            <div class="view-toggle">
+                                <button class="view-toggle-btn active" data-view="grid">
+                                    <i class="fas fa-th-large"></i>
+                                </button>
+                                <button class="view-toggle-btn" data-view="list">
+                                    <i class="fas fa-list"></i>
+                                </button>
+                                <button class="view-toggle-btn" data-view="details">
+                                    <i class="fas fa-table"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="file-toolbar">
+                        <button class="file-action-btn" id="copy-btn">
+                            <i class="fas fa-copy"></i> Copy
+                        </button>
+                        <button class="file-action-btn" id="cut-btn">
+                            <i class="fas fa-cut"></i> Cut
+                        </button>
+                        <button class="file-action-btn" id="paste-btn">
+                            <i class="fas fa-paste"></i> Paste
+                        </button>
+                        <button class="file-action-btn" id="delete-btn">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="file-action-btn" id="rename-btn">
+                            <i class="fas fa-edit"></i> Rename
+                        </button>
+                        <div class="toolbar-separator"></div>
+                        <button class="file-action-btn" id="new-folder-btn">
+                            <i class="fas fa-folder-plus"></i> New Folder
+                        </button>
+                        <button class="file-action-btn" id="new-file-btn2">
+                            <i class="fas fa-file-plus"></i> New File
+                        </button>
+                    </div>
+                    
+                    <div class="file-list-container">
+                        <div class="file-list-header">
+                            <div class="file-list-column" data-sort="name">
+                                Name <i class="fas fa-sort"></i>
+                            </div>
+                            <div class="file-list-column" data-sort="size">
+                                Size <i class="fas fa-sort"></i>
+                            </div>
+                            <div class="file-list-column" data-sort="modified">
+                                Modified <i class="fas fa-sort"></i>
+                            </div>
+                            <div class="file-list-column" data-sort="type">
+                                Type <i class="fas fa-sort"></i>
+                            </div>
+                        </div>
+                        <div class="file-list" id="file-list">
+                            <!-- Files will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="file-info-panel">
+                        <div class="info-panel-header">
+                            <h3>File Info</h3>
+                        </div>
+                        <div class="info-panel-content" id="file-info">
+                            Select a file to see details
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Monitor View -->
+                <div class="view" id="view-system" style="display: none;">
+                    <div class="view-header">
+                        <h2><i class="fas fa-chart-line"></i> System Monitor</h2>
+                    </div>
+                    
+                    <div class="dashboard">
+                        <div class="dashboard-card">
+                            <h3>CPU Usage</h3>
+                            <div class="gauge-container">
+                                <div class="gauge" id="cpu-gauge">
+                                    <div class="gauge-fill"></div>
+                                    <div class="gauge-value">0%</div>
+                                </div>
+                            </div>
+                            <div class="gauge-stats">
+                                <div>Cores: <span id="cpu-cores">0</span></div>
+                                <div>Frequency: <span id="cpu-freq">0 GHz</span></div>
+                            </div>
+                        </div>
+                        
+                        <div class="dashboard-card">
+                            <h3>Memory Usage</h3>
+                            <div class="gauge-container">
+                                <div class="gauge" id="ram-gauge">
+                                    <div class="gauge-fill"></div>
+                                    <div class="gauge-value">0%</div>
+                                </div>
+                            </div>
+                            <div class="gauge-stats">
+                                <div>Used: <span id="ram-used">0 GB</span></div>
+                                <div>Total: <span id="ram-total">0 GB</span></div>
+                            </div>
+                        </div>
+                        
+                        <div class="dashboard-card">
+                            <h3>Disk Usage</h3>
+                            <div class="gauge-container">
+                                <div class="gauge" id="disk-gauge">
+                                    <div class="gauge-fill"></div>
+                                    <div class="gauge-value">0%</div>
+                                </div>
+                            </div>
+                            <div class="gauge-stats">
+                                <div>Used: <span id="disk-used">0 GB</span></div>
+                                <div>Free: <span id="disk-free">0 GB</span></div>
+                            </div>
+                        </div>
+                        
+                        <div class="dashboard-card wide">
+                            <h3>Processes</h3>
+                            <div class="process-list">
+                                <table id="process-table">
+                                    <thead>
+                                        <tr>
+                                            <th>PID</th>
+                                            <th>Name</th>
+                                            <th>CPU %</th>
+                                            <th>Memory %</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Processes will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Assistant View -->
+                <div class="view" id="view-ai" style="display: none;">
+                    <div class="view-header">
+                        <h2><i class="fas fa-brain"></i> AI Assistant</h2>
+                    </div>
+                    
+                    <div class="ai-container">
+                        <div class="ai-chat">
+                            <div class="chat-messages" id="chat-messages">
+                                <div class="message ai">
+                                    <div class="message-avatar">
+                                        <i class="fas fa-robot"></i>
+                                    </div>
+                                    <div class="message-content">
+                                        <div class="message-text">
+                                            Hello! I'm JARVIS AI Assistant. How can I help you today?
+                                        </div>
+                                        <div class="message-time">Just now</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="chat-input">
+                                <div class="input-toolbar">
+                                    <button class="input-btn" title="Attach file">
+                                        <i class="fas fa-paperclip"></i>
+                                    </button>
+                                    <button class="input-btn" title="Code execution">
+                                        <i class="fas fa-code"></i>
+                                    </button>
+                                    <button class="input-btn" title="System context">
+                                        <i class="fas fa-desktop"></i>
+                                    </button>
+                                </div>
+                                <textarea id="ai-input" placeholder="Ask JARVIS anything... (Press Shift+Enter to send)"></textarea>
+                                <div class="input-footer">
+                                    <div class="model-selector">
+                                        <select id="ai-model">
+                                            <option value="gpt-3.5">GPT-3.5 Turbo</option>
+                                            <option value="gpt-4">GPT-4</option>
+                                            <option value="local">Local Model</option>
+                                            <option value="jarvis">JARVIS Core</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-primary" id="send-btn">
+                                        <i class="fas fa-paper-plane"></i> Send
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="ai-tools">
+                            <div class="tools-section">
+                                <h3>AI Tools</h3>
+                                <div class="tools-grid">
+                                    <button class="tool-btn" data-tool="summarize">
+                                        <i class="fas fa-file-contract"></i>
+                                        <span>Summarize</span>
+                                    </button>
+                                    <button class="tool-btn" data-tool="translate">
+                                        <i class="fas fa-language"></i>
+                                        <span>Translate</span>
+                                    </button>
+                                    <button class="tool-btn" data-tool="explain">
+                                        <i class="fas fa-lightbulb"></i>
+                                        <span>Explain Code</span>
+                                    </button>
+                                    <button class="tool-btn" data-tool="debug">
+                                        <i class="fas fa-bug"></i>
+                                        <span>Debug</span>
+                                    </button>
+                                    <button class="tool-btn" data-tool="generate">
+                                        <i class="fas fa-magic"></i>
+                                        <span>Generate Code</span>
+                                    </button>
+                                    <button class="tool-btn" data-tool="analyze">
+                                        <i class="fas fa-chart-bar"></i>
+                                        <span>Analyze Data</span>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="tools-section">
+                                <h3>Context</h3>
+                                <div class="context-list" id="context-list">
+                                    <div class="context-item">
+                                        <i class="fas fa-folder"></i>
+                                        <span>Current Directory</span>
+                                        <code id="context-dir">/home/user</code>
+                                    </div>
+                                    <div class="context-item">
+                                        <i class="fas fa-microchip"></i>
+                                        <span>System Resources</span>
+                                        <code id="context-resources">CPU: 0%, RAM: 0%</code>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Modals -->
+        <div class="modal" id="new-file-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New File</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="new-file-name" placeholder="filename.txt">
+                    <textarea id="new-file-content" placeholder="File content..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary modal-cancel">Cancel</button>
+                    <button class="btn btn-primary" id="create-file-btn">Create</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal" id="new-folder-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New Folder</h3>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="new-folder-name" placeholder="Folder name">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary modal-cancel">Cancel</button>
+                    <button class="btn btn-primary" id="create-folder-btn">Create</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

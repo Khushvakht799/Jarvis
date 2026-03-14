@@ -1,0 +1,87 @@
+//! Пакетная индексация миллионов документов
+
+use crate::*;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
+use tracing::info;
+
+/// Статистика индексации
+#[derive(Debug)]
+pub struct BuildStats {
+    pub total_docs: usize,
+    pub time_secs: f64,
+    pub docs_per_sec: f64,
+}
+
+/// Построитель индекса
+pub struct IndexBuilder;
+
+impl IndexBuilder {
+    pub fn build_index(
+        input_dir: &str,
+        batch_size: usize,
+        output_path: &str,
+    ) -> Result<BuildStats> {
+        let start = std::time::Instant::now();
+        
+        info!("Начало индексации директории: {}", input_dir);
+        
+        let index = Arc::new(Mutex::new(Index::new()));
+        
+        let files: Vec<_> = walkdir::WalkDir::new(input_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .map(|e| e.path().to_string_lossy().to_string())
+            .collect();
+        
+        info!("Найдено {} файлов", files.len());
+        
+        files.par_chunks(batch_size).for_each(|batch| {
+            let mut local_index = Index::new();
+            
+            for path in batch {
+                if let Ok(content) = std::fs::read_to_string(path) {
+                    let metadata = std::fs::metadata(path).ok();
+                    
+                    let doc = Document {
+                        id: fxhash::hash64(path.as_bytes()),
+                        text: content,
+                        metadata: Metadata {
+                            path: path.clone(),
+                            modified: metadata
+                                .and_then(|m| m.modified().ok())
+                                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                                .map(|d| d.as_secs())
+                                .unwrap_or(0),
+                            size: metadata.map(|m| m.len()).unwrap_or(0),
+                            source: "filesystem".to_string(),
+                        },
+                    };
+                    
+                    local_index.add_document(doc);
+                }
+            }
+            
+            let mut global = index.lock().unwrap();
+            for (_, doc) in local_index.store.docs {
+                global.add_document(doc);
+            }
+        });
+        
+        let elapsed = start.elapsed();
+        let stats = BuildStats {
+            total_docs: index.lock().unwrap().meta.num_docs,
+            time_secs: elapsed.as_secs_f64(),
+            docs_per_sec: index.lock().unwrap().meta.num_docs as f64 / elapsed.as_secs_f64(),
+        };
+        
+        info!("Индексация завершена: {:.2?}", elapsed);
+        info!("Документов: {}, скорость: {:.0} docs/sec", 
+              stats.total_docs, stats.docs_per_sec);
+        
+        index.lock().unwrap().save(output_path)?;
+        
+        Ok(stats)
+    }
+}

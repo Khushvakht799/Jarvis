@@ -1,0 +1,31 @@
+﻿
+            # ========== BVG КОМАНДЫ ==========
+            elif command == 'bvg-stats':
+                """Статистика BVG памяти"""
+                plugin = kernel.get_plugin('llm_chat')
+                if plugin and hasattr(plugin, 'bvg_stats'):
+                    print(f"\n📊 {plugin.bvg_stats()}")
+                else:
+                    print("❌ BVG не доступен")
+                    
+            elif command == 'bvg-save':
+                """Принудительно сохранить BVG"""
+                plugin = kernel.get_plugin('llm_chat')
+                if plugin and hasattr(plugin, 'bvg'):
+                    plugin.bvg.save()
+                    print("✅ BVG сохранен")
+                else:
+                    print("❌ BVG не доступен")
+                    
+            elif command == 'bvg-context':
+                """Показать текущий контекст"""
+                plugin = kernel.get_plugin('llm_chat')
+                if plugin and hasattr(plugin, 'bvg'):
+                    context = plugin.bvg.get_context()
+                    print("\n🔗 Текущий контекст:")
+                    for i, msg in enumerate(context, 1):
+                        print(f"  {i}. [{msg['intent']}] {msg['content'][:50]}...")
+                else:
+                    print("❌ BVG не доступен")
+            # ========== КОНЕЦ BVG КОМАНД ==========
+

@@ -1,0 +1,32 @@
+{
+  "commands": [
+    {
+      "category": "индексация",
+      "name": "build",
+      "description": "Построить индекс"
+    },
+    {
+      "category": "поиск",
+      "name": "search",
+      "description": "Семантический поиск"
+    },
+    {
+      "category": "анализ",
+      "name": "analyze",
+      "description": "Анализ файла"
+    },
+    {
+      "category": "документы",
+      "name": "summarize",
+      "description": "Суммировать документ"
+    }
+  ],
+  "cognitive_modifiers": [
+    "визуализировать",
+    "прогнозировать",
+    "классифицировать",
+    "ассоциировать",
+    "критиковать",
+    "генерировать"
+  ]
+}

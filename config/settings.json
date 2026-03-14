@@ -1,0 +1,26 @@
+﻿{
+    "name": "Jarvis",
+    "version": "0.1.0",
+    "core": {
+        "autostart_plugins": ["system_monitor", "llm_chat"],
+        "log_level": "INFO",
+        "theme": "dark",
+        "language": "ru"
+    },
+    "file_explorer": {
+        "default_path": "C:\\Users\\Usuario",
+        "show_hidden": false,
+        "default_view": "details",
+        "sort_by": "name",
+        "sort_reverse": false
+    },
+    "ui": {
+        "mode": "web",
+        "port": 8080,
+        "host": "localhost"
+    },
+    "plugins": {
+        "enabled": ["system_monitor"],
+        "disabled": []
+    }
+}

@@ -1,0 +1,22 @@
+[package]
+name = "binvg_sdk"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+memmap2 = "0.9"
+byteorder = "1.5"
+bytemuck = "1.25.0"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+rand = "0.8"
+serde_json = "1.0"
+rayon = "1.11.0"
+
+[[bin]]
+name = "test_pipeline"
+path = "test_pipeline.rs"
+
+[[bin]]
+name = "stress_test"
+path = "stress_test.rs"
