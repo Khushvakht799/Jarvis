@@ -1,0 +1,330 @@
+{
+  "1": {
+    "verbs": ["найди", "ищи", "поищи", "найти", "искать", "отыскать", "разыскать"],
+    "canonical_action": "SEARCH"
+  },
+  "2": {
+    "verbs": ["открой", "покажи", "открыть", "показать", "вывести", "запустить"],
+    "canonical_action": "OPEN"
+  },
+  "3": {
+    "verbs": ["создай", "сделай", "сгенерируй", "создать", "сделать", "сгенерировать", "построить"],
+    "canonical_action": "CREATE"
+  },
+  "4": {
+    "verbs": ["удали", "удалить", "стереть", "убрать"],
+    "canonical_action": "DELETE"
+  },
+  "5": {
+    "verbs": ["прочитай", "читай", "посмотри", "прочитать", "читать", "посмотреть"],
+    "canonical_action": "READ"
+  },
+  "6": {
+    "verbs": ["запиши", "сохрани", "записать", "сохранить"],
+    "canonical_action": "WRITE"
+  },
+  "7": {
+    "verbs": ["запусти", "выполни", "запустить", "выполнить"],
+    "canonical_action": "RUN"
+  },
+  "8": {
+    "verbs": ["останови", "прекрати", "остановить", "прекратить"],
+    "canonical_action": "STOP"
+  },
+  "9": {
+    "verbs": ["посчитай", "вычисли", "подсчитай", "посчитать", "вычислить", "подсчитать"],
+    "canonical_action": "CALCULATE"
+  },
+  "10": {
+    "verbs": ["скомпилируй", "собери", "компилировать", "собрать"],
+    "canonical_action": "COMPILE"
+  },
+  "11": {
+    "verbs": ["отладь", "дебажь", "отладить", "дебажить"],
+    "canonical_action": "DEBUG"
+  },
+  "12": {
+    "verbs": ["протестируй", "проверь", "тестировать", "проверить"],
+    "canonical_action": "TEST"
+  },
+  "13": {
+    "verbs": ["построй", "сбилди", "построить", "сбилдить"],
+    "canonical_action": "BUILD"
+  },
+  "14": {
+    "verbs": ["очисти", "очистить"],
+    "canonical_action": "CLEAN"
+  },
+  "15": {
+    "verbs": ["установи", "поставь", "установить", "поставить"],
+    "canonical_action": "INSTALL"
+  },
+  "16": {
+    "verbs": ["удали", "деинсталлируй", "удалить", "деинсталлировать"],
+    "canonical_action": "UNINSTALL"
+  },
+  "17": {
+    "verbs": ["скопируй", "копируй", "копировать", "скопировать"],
+    "canonical_action": "COPY"
+  },
+  "18": {
+    "verbs": ["перемести", "передвинь", "переместить", "передвинуть"],
+    "canonical_action": "MOVE"
+  },
+  "19": {
+    "verbs": ["переименуй", "переименовать"],
+    "canonical_action": "RENAME"
+  },
+  "20": {
+    "verbs": ["список", "перечисли", "перечислить"],
+    "canonical_action": "LIST"
+  },
+  "21": {
+    "verbs": ["найди", "отыщи", "найти", "отыскать"],
+    "canonical_action": "FIND"
+  },
+  "22": {
+    "verbs": ["грепни", "грепнуть", "поиск"],
+    "canonical_action": "GREP"
+  },
+  "23": {
+    "verbs": ["замени", "подставь", "заменить", "подставить"],
+    "canonical_action": "REPLACE"
+  },
+  "24": {
+    "verbs": ["редактируй", "правь", "редактировать", "править"],
+    "canonical_action": "EDIT"
+  },
+  "25": {
+    "verbs": ["просмотри", "посмотри", "просмотреть", "посмотреть"],
+    "canonical_action": "VIEW"
+  },
+  "26": {
+    "verbs": ["проиграй", "воспроизведи", "проиграть", "воспроизвести"],
+    "canonical_action": "PLAY"
+  },
+  "27": {
+    "verbs": ["приостанови", "пауза", "приостановить"],
+    "canonical_action": "PAUSE"
+  },
+  "28": {
+    "verbs": ["следующий", "далее", "следующий"],
+    "canonical_action": "NEXT"
+  },
+  "29": {
+    "verbs": ["предыдущий", "назад", "предыдущий"],
+    "canonical_action": "PREVIOUS"
+  },
+  "30": {
+    "verbs": ["громче"],
+    "canonical_action": "VOLUME_UP"
+  },
+  "31": {
+    "verbs": ["тише"],
+    "canonical_action": "VOLUME_DOWN"
+  },
+  "32": {
+    "verbs": ["заглуши", "без звука", "заглушить"],
+    "canonical_action": "MUTE"
+  },
+  "33": {
+    "verbs": ["скриншот", "снимок экрана"],
+    "canonical_action": "SCREENSHOT"
+  },
+  "34": {
+    "verbs": ["запиши", "запись", "записать"],
+    "canonical_action": "RECORD"
+  },
+  "35": {
+    "verbs": ["отправь", "пошли", "отправить", "послать"],
+    "canonical_action": "SEND"
+  },
+  "36": {
+    "verbs": ["получи", "получить"],
+    "canonical_action": "RECEIVE"
+  },
+  "37": {
+    "verbs": ["скачай", "загрузи", "скачать", "загрузить"],
+    "canonical_action": "DOWNLOAD"
+  },
+  "38": {
+    "verbs": ["загрузи", "аплоадь", "загрузить", "аплоадить"],
+    "canonical_action": "UPLOAD"
+  },
+  "39": {
+    "verbs": ["синхронизируй", "синхронизировать"],
+    "canonical_action": "SYNC"
+  },
+  "40": {
+    "verbs": ["бэкап", "сделай резервную копию", "бэкапить"],
+    "canonical_action": "BACKUP"
+  },
+  "41": {
+    "verbs": ["восстанови", "восстановить"],
+    "canonical_action": "RESTORE"
+  },
+  "42": {
+    "verbs": ["заблокируй", "запри", "заблокировать", "запереть"],
+    "canonical_action": "LOCK"
+  },
+  "43": {
+    "verbs": ["разблокируй", "разблокировать"],
+    "canonical_action": "UNLOCK"
+  },
+  "44": {
+    "verbs": ["выйди", "разлогинься", "выйти", "разлогиниться"],
+    "canonical_action": "LOGOUT"
+  },
+  "45": {
+    "verbs": ["выключи", "заверши работу", "выключить", "завершить"],
+    "canonical_action": "SHUTDOWN"
+  },
+  "46": {
+    "verbs": ["перезагрузи", "перезагрузить"],
+    "canonical_action": "REBOOT"
+  },
+  "47": {
+    "verbs": ["гибернация", "спящий режим", "гибернируй"],
+    "canonical_action": "HIBERNATE"
+  },
+  "48": {
+    "verbs": ["сон", "усыпи"],
+    "canonical_action": "SLEEP"
+  },
+  "49": {
+    "verbs": ["разбуди", "пробуди", "разбудить", "пробудить"],
+    "canonical_action": "WAKE"
+  },
+  "50": {
+    "verbs": ["подключи", "соедини", "подключить", "соединить"],
+    "canonical_action": "CONNECT"
+  },
+  "51": {
+    "verbs": ["отключи", "отключить"],
+    "canonical_action": "DISCONNECT"
+  },
+  "52": {
+    "verbs": ["примонтируй", "подключи диск", "примонтировать"],
+    "canonical_action": "MOUNT"
+  },
+  "53": {
+    "verbs": ["размонтируй", "размонтировать"],
+    "canonical_action": "UNMOUNT"
+  },
+  "54": {
+    "verbs": ["форматируй", "форматировать"],
+    "canonical_action": "FORMAT"
+  },
+  "55": {
+    "verbs": ["сотри", "очисти", "стереть", "очистить"],
+    "canonical_action": "ERASE"
+  },
+  "56": {
+    "verbs": ["проверь", "проверить"],
+    "canonical_action": "CHECK"
+  },
+  "57": {
+    "verbs": ["почини", "исправь", "починить", "исправить"],
+    "canonical_action": "REPAIR"
+  },
+  "58": {
+    "verbs": ["оптимизируй", "оптимизировать"],
+    "canonical_action": "OPTIMIZE"
+  },
+  "59": {
+    "verbs": ["дефрагментируй", "дефрагментировать"],
+    "canonical_action": "DEFRAG"
+  },
+  "60": {
+    "verbs": ["сканируй", "сканировать"],
+    "canonical_action": "SCAN"
+  },
+  "61": {
+    "verbs": ["карантин", "изолируй", "изолировать"],
+    "canonical_action": "QUARANTINE"
+  },
+  "62": {
+    "verbs": ["разреши", "разрешить"],
+    "canonical_action": "ALLOW"
+  },
+  "63": {
+    "verbs": ["заблокируй", "заблокировать"],
+    "canonical_action": "BLOCK"
+  },
+  "64": {
+    "verbs": ["анализируй", "анализировать"],
+    "canonical_action": "ANALYZE"
+  },
+  "65": {
+    "verbs": ["суммируй", "резюмируй", "суммировать", "резюмировать"],
+    "canonical_action": "SUMMARIZE"
+  },
+  "66": {
+    "verbs": ["переведи", "перевести"],
+    "canonical_action": "TRANSLATE"
+  },
+  "67": {
+    "verbs": ["объясни", "объяснить"],
+    "canonical_action": "EXPLAIN"
+  },
+  "68": {
+    "verbs": ["предскажи", "предсказать"],
+    "canonical_action": "PREDICT"
+  },
+  "69": {
+    "verbs": ["симулируй", "симулировать"],
+    "canonical_action": "SIMULATE"
+  },
+  "70": {
+    "verbs": ["спланируй", "спланировать"],
+    "canonical_action": "PLAN"
+  },
+  "71": {
+    "verbs": ["организуй", "организовать"],
+    "canonical_action": "ORGANIZE"
+  },
+  "72": {
+    "verbs": ["фильтруй", "фильтровать"],
+    "canonical_action": "FILTER"
+  },
+  "73": {
+    "verbs": ["сортируй", "сортировать"],
+    "canonical_action": "SORT"
+  },
+  "74": {
+    "verbs": ["группируй", "группировать"],
+    "canonical_action": "GROUP"
+  },
+  "75": {
+    "verbs": ["объедини", "объединить"],
+    "canonical_action": "MERGE"
+  },
+  "76": {
+    "verbs": ["раздели", "разделить"],
+    "canonical_action": "SPLIT"
+  },
+  "77": {
+    "verbs": ["кодируй", "кодировать"],
+    "canonical_action": "ENCODE"
+  },
+  "78": {
+    "verbs": ["декодируй", "декодировать"],
+    "canonical_action": "DECODE"
+  },
+  "79": {
+    "verbs": ["зашифруй", "зашифровать"],
+    "canonical_action": "ENCRYPT"
+  },
+  "80": {
+    "verbs": ["расшифруй", "расшифровать"],
+    "canonical_action": "DECRYPT"
+  },
+  "81": {
+    "verbs": ["сожми", "сжать"],
+    "canonical_action": "COMPRESS"
+  },
+  "82": {
+    "verbs": ["распакуй", "распаковать"],
+    "canonical_action": "DECOMPRESS"
+  }
+}

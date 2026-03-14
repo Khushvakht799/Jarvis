@@ -1,0 +1,826 @@
+"""
+AI Assistant Plugin для JARVIS
+Интеграция с OpenAI + локальные модели + системный контекст
+"""
+
+import os
+import json
+import time
+import hashlib
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Union
+from pathlib import Path
+from threading import Thread, Lock
+import requests
+import openai
+import sys
+
+class AIConversation:
+    """Одна беседа с AI"""
+    
+    def __init__(self, conversation_id: str = None):
+        self.id = conversation_id or f"conv_{int(time.time())}_{hashlib.md5(str(time.time()).encode()).hexdigest()[:8]}"
+        self.messages: List[Dict[str, str]] = []
+        self.created_at = datetime.now().isoformat()
+        self.updated_at = self.created_at
+        self.metadata = {
+            "model": "",
+            "tokens_used": 0,
+            "context_included": False
+        }
+    
+    def add_message(self, role: str, content: str, model: str = "", tokens: int = 0):
+        """Добавить сообщение в беседу"""
+        self.messages.append({
+            "role": role,
+            "content": content,
+            "timestamp": datetime.now().isoformat(),
+            "model": model,
+            "tokens": tokens
+        })
+        self.updated_at = datetime.now().isoformat()
+        if model:
+            self.metadata["model"] = model
+        self.metadata["tokens_used"] += tokens
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Конвертировать в словарь"""
+        return {
+            "id": self.id,
+            "messages": self.messages,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "metadata": self.metadata,
+            "message_count": len(self.messages)
+        }
+
+class AIMemory:
+    """Память AI Assistant для обучения из контекста"""
+    
+    def __init__(self, memory_path: str = "plugins/ai_assistant/memory.json"):
+        self.memory_path = Path(memory_path)
+        self.memories: List[Dict[str, Any]] = []
+        self.lock = Lock()
+        self.load()
+    
+    def load(self):
+        """Загрузить память из файла"""
+        if self.memory_path.exists():
+            try:
+                with open(self.memory_path, 'r', encoding='utf-8') as f:
+                    self.memories = json.load(f)
+            except:
+                self.memories = []
+    
+    def save(self):
+        """Сохранить память в файл"""
+        with self.lock:
+            with open(self.memory_path, 'w', encoding='utf-8') as f:
+                json.dump(self.memories, f, indent=2, ensure_ascii=False)
+    
+    def add_memory(self, memory_type: str, content: str, context: Dict[str, Any] = None):
+        """Добавить новое воспоминание"""
+        memory = {
+            "id": f"mem_{int(time.time())}_{hashlib.md5(content.encode()).hexdigest()[:8]}",
+            "type": memory_type,
+            "content": content,
+            "context": context or {},
+            "timestamp": datetime.now().isoformat(),
+            "access_count": 0
+        }
+        
+        with self.lock:
+            self.memories.append(memory)
+            # Ограничиваем количество воспоминаний
+            if len(self.memories) > 1000:
+                self.memories = self.memories[-1000:]
+        
+        self.save()
+        return memory["id"]
+    
+    def search_memories(self, query: str, memory_type: str = None, limit: int = 10) -> List[Dict[str, Any]]:
+        """Поиск по воспоминаниям"""
+        query_lower = query.lower()
+        results = []
+        
+        for memory in reversed(self.memories):  # Ищем с конца (новые сначала)
+            if memory_type and memory["type"] != memory_type:
+                continue
+            
+            # Поиск по содержанию
+            if query_lower in memory["content"].lower():
+                memory["access_count"] = memory.get("access_count", 0) + 1
+                results.append(memory)
+            
+            # Поиск по контексту
+            elif memory.get("context"):
+                context_str = json.dumps(memory["context"]).lower()
+                if query_lower in context_str:
+                    memory["access_count"] = memory.get("access_count", 0) + 1
+                    results.append(memory)
+            
+            if len(results) >= limit:
+                break
+        
+        # Сортируем по релевантности (частота доступа + новизна)
+        results.sort(key=lambda x: (
+            x.get("access_count", 0),
+            datetime.fromisoformat(x["timestamp"]).timestamp()
+        ), reverse=True)
+        
+        return results[:limit]
+    
+    def get_relevant_context(self, current_context: Dict[str, Any], limit: int = 5) -> List[Dict[str, Any]]:
+        """Получить релевантные воспоминания для текущего контекста"""
+        # Извлекаем ключевые слова из контекста
+        keywords = []
+        if current_context.get("current_directory"):
+            keywords.append(current_context["current_directory"].split("\\")[-1])
+        
+        if current_context.get("system_stats", {}).get("cpu_percent", 0) > 80:
+            keywords.append("high_cpu")
+        
+        if current_context.get("system_stats", {}).get("memory_percent", 0) > 80:
+            keywords.append("high_memory")
+        
+        # Ищем по ключевым словам
+        results = []
+        for keyword in keywords:
+            if keyword:
+                keyword_results = self.search_memories(keyword, limit=3)
+                results.extend(keyword_results)
+        
+        # Убираем дубликаты
+        seen_ids = set()
+        unique_results = []
+        for result in results:
+            if result["id"] not in seen_ids:
+                seen_ids.add(result["id"])
+                unique_results.append(result)
+        
+        return unique_results[:limit]
+
+class Plugin:
+    """AI Assistant Plugin - интеллектуальный помощник JARVIS"""
+    
+    def __init__(self, kernel):
+        self.kernel = kernel
+        self.name = "ai_assistant"
+        self.version = "1.0.0"
+        self.description = "AI помощник с OpenAI и системным контекстом"
+        
+        # Загрузка конфигурации
+        self.config = self._load_config()
+        
+        # Инициализация OpenAI
+        self.openai_client = None
+        self.api_key = self.config["settings"]["openai_api_key"]
+        if self.api_key:
+            try:
+                openai.api_key = self.api_key
+                self.openai_client = openai.OpenAI(api_key=self.api_key)
+                self.kernel.logger.info("OpenAI client initialized")
+            except Exception as e:
+                self.kernel.logger.error(f"Failed to initialize OpenAI: {e}")
+        
+        # Системный промпт
+        self.system_prompt = self.config.get("system_prompt", "")
+        
+        # Управление беседами
+        self.conversations: Dict[str, AIConversation] = {}
+        self.current_conversation_id = None
+        self.max_conversation_history = 20
+        
+        # Память и контекст
+        self.memory = AIMemory()
+        self.system_context = {}
+        self.context_update_interval = 30  # секунд
+        
+        # Состояние
+        self.is_processing = False
+        self.context_thread = None
+        self.context_updater_running = True
+        
+        # Лок
+        self.lock = Lock()
+    
+    def _load_config(self) -> Dict[str, Any]:
+        """Загрузка конфигурации плагина"""
+        config_path = Path("plugins/ai_assistant/config.json")
+        default_config = {
+            "name": "AI Assistant",
+            "version": "1.0.0",
+            "description": "AI помощник с интеграцией OpenAI",
+            "settings": {
+                "openai_api_key": "",
+                "default_model": "gpt-3.5-turbo",
+                "temperature": 0.7,
+                "max_tokens": 1000,
+                "enable_system_context": True,
+                "local_model_enabled": False,
+                "local_model_path": "",
+                "memory_enabled": True,
+                "max_memory_items": 50
+            },
+            "system_prompt": """Ты - JARVIS AI Assistant, интегрированный в модульную систему управления компьютером.
+Доступ к системе:
+1. Файловая система - можешь просматривать файлы и директории
+2. Мониторинг системы - CPU, память, диск, процессы
+3. Выполнение команд через плагины
+
+Твои задачи:
+1. Помогать с файловыми операциями
+2. Анализировать системные проблемы
+3. Объяснять код и ошибки
+4. Решать технические проблемы
+5. Учиться из контекста пользователя
+
+Особенности:
+- Учитывай текущий системный контекст в ответах
+- Будь точным и техничным, но понятным
+- Предлагай конкретные решения
+- Запоминай важную информацию о пользователе
+- Отвечай на языке пользователя (русский/английский)""",
+            "capabilities": [
+                "file_operations",
+                "system_monitoring",
+                "code_explanation",
+                "problem_solving",
+                "text_processing",
+                "learning_from_context"
+            ]
+        }
+        
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    user_config = json.load(f)
+                    # Глубокое обновление конфигурации
+                    import copy
+                    result = copy.deepcopy(default_config)
+                    
+                    def deep_update(target, source):
+                        for key, value in source.items():
+                            if key in target and isinstance(target[key], dict) and isinstance(value, dict):
+                                deep_update(target[key], value)
+                            else:
+                                target[key] = value
+                    
+                    deep_update(result, user_config)
+                    return result
+            except Exception as e:
+                self.kernel.logger.error(f"Error loading AI config: {e}")
+                return default_config
+        
+        # Сохраняем дефолтную конфигурацию
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(default_config, f, indent=2, ensure_ascii=False)
+        
+        return default_config
+    
+    def on_load(self):
+        """Вызывается при загрузке плагина"""
+        self.kernel.logger.info("AI Assistant plugin loaded")
+        
+        # Регистрируем обработчики событий
+        self.kernel.subscribe_event("ai_message", self.handle_ai_message)
+        self.kernel.subscribe_event("ai_conversation_start", self.handle_conversation_start)
+        self.kernel.subscribe_event("ai_conversation_end", self.handle_conversation_end)
+        self.kernel.subscribe_event("get_ai_status", self.handle_status_request)
+        self.kernel.subscribe_event("system_stats_update", self.update_system_context)
+        
+        # Создаём новую беседу по умолчанию
+        self.create_conversation()
+        
+        # Запускаем обновление контекста
+        self.start_context_updater()
+        
+        # Инициализируем системный контекст
+        self.update_system_context(None, None)
+        
+        # Добавляем системное сообщение в беседу
+        self.add_system_message()
+        
+        self.kernel.logger.info("AI Assistant ready for conversations")
+    
+    def on_unload(self):
+        """Вызывается при выгрузке плагина"""
+        self.stop_context_updater()
+        
+        # Отписываемся от событий
+        self.kernel.unsubscribe_event("ai_message", self.handle_ai_message)
+        self.kernel.unsubscribe_event("ai_conversation_start", self.handle_conversation_start)
+        self.kernel.unsubscribe_event("ai_conversation_end", self.handle_conversation_end)
+        self.kernel.unsubscribe_event("get_ai_status", self.handle_status_request)
+        self.kernel.unsubscribe_event("system_stats_update", self.update_system_context)
+        
+        # Сохраняем память
+        self.memory.save()
+        
+        self.kernel.logger.info("AI Assistant plugin unloaded")
+    
+    def create_conversation(self, conversation_id: str = None) -> str:
+        """Создать новую беседу"""
+        conversation = AIConversation(conversation_id)
+        with self.lock:
+            self.conversations[conversation.id] = conversation
+        
+        # Устанавливаем как текущую
+        self.current_conversation_id = conversation.id
+        
+        # Сохраняем в памяти
+        self.memory.add_memory(
+            "conversation_start",
+            f"Начата новая беседа: {conversation.id}",
+            {"conversation_id": conversation.id}
+        )
+        
+        self.kernel.emit_event("conversation_created", {
+            "conversation_id": conversation.id,
+            "timestamp": conversation.created_at
+        })
+        
+        return conversation.id
+    
+    def add_system_message(self):
+        """Добавить системное сообщение в текущую беседу"""
+        if not self.current_conversation_id:
+            return
+        
+        conversation = self.conversations.get(self.current_conversation_id)
+        if not conversation:
+            return
+        
+        # Получаем текущий контекст
+        context = self.get_current_context()
+        
+        # Формируем расширенный системный промпт
+        enhanced_prompt = f"""{self.system_prompt}
+
+Текущий системный контекст (обновляется автоматически):
+- ОС: {context['system_info']['os']} {context['system_info']['release']}
+- Архитектура: {context['system_info']['arch']}
+- Python: {context['system_info']['python_version']}
+- Текущая директория: {context['current_directory']}
+- CPU: {context['system_stats'].get('cpu_percent', 0)}%
+- Память: {context['system_stats'].get('memory_percent', 0)}%
+- Диск: {context['system_stats'].get('disk_percent', 0)}%
+- Процессы: {context['system_stats'].get('process_count', 0)}
+- Время работы: {context['system_stats'].get('uptime', 0):.0f} сек
+
+Доступные файлы в текущей директории: {', '.join(context['recent_files'][:5]) if context['recent_files'] else 'нет'}
+
+Важные правила:
+1. Учитывай этот контекст в ответах
+2. Если пользователь спрашивает о файлах - используй информацию выше
+3. При проблемах с системой - анализируй статистику
+4. Будь полезным и точным
+"""
+        
+        conversation.add_message("system", enhanced_prompt, "jarvis", 0)
+    
+    def get_current_context(self) -> Dict[str, Any]:
+        """Получить текущий системный контекст"""
+        import platform
+        import psutil
+        
+        # Базовый контекст
+        context = {
+            "timestamp": datetime.now().isoformat(),
+            "system_info": {
+                "os": platform.system(),
+                "release": platform.release(),
+                "arch": platform.architecture()[0],
+                "python_version": platform.python_version(),
+                "processor": platform.processor(),
+                "hostname": platform.node()
+            },
+            "current_directory": str(Path.cwd()),
+            "recent_files": [],
+            "system_stats": {},
+            "conversation_info": {
+                "current_id": self.current_conversation_id,
+                "total_conversations": len(self.conversations),
+                "memory_items": len(self.memory.memories)
+            }
+        }
+        
+        # Получаем статистику через плагин мониторинга
+        monitor_plugin = self.kernel.get_plugin('system_monitor')
+        if monitor_plugin:
+            try:
+                stats = monitor_plugin.get_system_stats()
+                context["system_stats"] = {
+                    "cpu_percent": stats.get("cpu", {}).get("percent", 0),
+                    "memory_percent": stats.get("memory", {}).get("percent", 0),
+                    "disk_percent": stats.get("disk", {}).get("percent", 0),
+                    "memory_available_gb": stats.get("memory", {}).get("available", 0) / (1024**3),
+                    "disk_free_gb": stats.get("disk", {}).get("free", 0) / (1024**3),
+                    "process_count": stats.get("system", {}).get("process_count", 0),
+                    "uptime": stats.get("system", {}).get("uptime", 0)
+                }
+            except:
+                pass
+        
+        # Получаем текущую директорию из файлового менеджера
+        file_explorer = self.kernel.plugins.get("file_explorer")
+        if file_explorer:
+            context["current_directory"] = str(file_explorer.current_path)
+            
+            # Получаем список файлов
+            try:
+                listing = file_explorer.list_directory(context["current_directory"])
+                if "items" in listing:
+                    context["recent_files"] = [
+                        f"{'📁' if item['is_dir'] else '📄'} {item['name']}"
+                        for item in listing["items"][:10]
+                    ]
+            except:
+                pass
+        
+        # Добавляем релевантные воспоминания
+        if self.config["settings"]["memory_enabled"]:
+            relevant_memories = self.memory.get_relevant_context(context, limit=3)
+            context["relevant_memories"] = [
+                {
+                    "type": mem["type"],
+                    "content": mem["content"][:100] + "..." if len(mem["content"]) > 100 else mem["content"],
+                    "timestamp": mem["timestamp"]
+                }
+                for mem in relevant_memories
+            ]
+        
+        return context
+    
+    def update_system_context(self, event_name, data):
+        """Обновить системный контекст"""
+        self.system_context = self.get_current_context()
+    
+    def start_context_updater(self):
+        """Запустить обновление контекста в фоне"""
+        self.context_updater_running = True
+        self.context_thread = Thread(target=self._context_update_loop, daemon=True)
+        self.context_thread.start()
+    
+    def stop_context_updater(self):
+        """Остановить обновление контекста"""
+        self.context_updater_running = False
+        if self.context_thread:
+            self.context_thread.join(timeout=1)
+    
+    def _context_update_loop(self):
+        """Цикл обновления контекста"""
+        while self.context_updater_running:
+            self.update_system_context(None, None)
+            time.sleep(self.context_update_interval)
+    
+    def handle_ai_message(self, event_name, data) -> Dict[str, Any]:
+        """Обработать сообщение от пользователя"""
+        if not data or "message" not in data:
+            return {"error": "Сообщение не предоставлено"}
+        
+        user_message = data["message"]
+        conversation_id = data.get("conversation_id", self.current_conversation_id)
+        model = data.get("model", self.config["settings"]["default_model"])
+        include_context = data.get("include_context", True)
+        
+        # Убедимся, что беседа существует
+        if conversation_id not in self.conversations:
+            conversation_id = self.create_conversation()
+        
+        conversation = self.conversations[conversation_id]
+        self.current_conversation_id = conversation_id
+        
+        # Добавляем сообщение пользователя
+        conversation.add_message("user", user_message, "", 0)
+        
+        # Сохраняем в памяти
+        self.memory.add_memory(
+            "user_message",
+            user_message,
+            {
+                "conversation_id": conversation_id,
+                "context": self.system_context if include_context else {}
+            }
+        )
+        
+        # Обрабатываем сообщение
+        try:
+            if self.is_processing:
+                return {"error": "AI уже обрабатывает предыдущий запрос"}
+            
+            self.is_processing = True
+            
+            # Выбираем модель обработки
+            if model.startswith("gpt-") and self.openai_client:
+                response = self._process_with_openai(conversation, user_message, model, include_context)
+            elif model == "jarvis" or not self.openai_client:
+                response = self._process_with_jarvis(conversation, user_message, include_context)
+            else:
+                response = {"error": f"Модель {model} не поддерживается"}
+            
+            self.is_processing = False
+            
+            if "error" not in response:
+                # Добавляем ответ в беседу
+                conversation.add_message(
+                    "assistant", 
+                    response["content"],
+                    response.get("model", "jarvis"),
+                    response.get("tokens", 0)
+                )
+                
+                # Сохраняем в памяти
+                self.memory.add_memory(
+                    "ai_response",
+                    response["content"],
+                    {
+                        "conversation_id": conversation_id,
+                        "model": response.get("model", "jarvis"),
+                        "user_message": user_message
+                    }
+                )
+                
+                # Отправляем событие
+                self.kernel.emit_event("ai_response", {
+                    "conversation_id": conversation_id,
+                    "message": response["content"],
+                    "model": response.get("model", "jarvis"),
+                    "tokens": response.get("tokens", 0),
+                    "context_used": include_context,
+                    "timestamp": datetime.now().isoformat()
+                })
+            
+            return response
+            
+        except Exception as e:
+            self.is_processing = False
+            error_msg = f"Ошибка обработки AI: {str(e)}"
+            self.kernel.logger.error(error_msg)
+            
+            # Fallback на локальную обработку
+            try:
+                response = self._process_with_jarvis(conversation, user_message, include_context)
+                return response
+            except:
+                return {"error": error_msg}
+    
+    def _process_with_openai(self, conversation: AIConversation, message: str, 
+                            model: str, include_context: bool) -> Dict[str, Any]:
+        """Обработать с помощью OpenAI API"""
+        if not self.openai_client:
+            return {"error": "OpenAI клиент не инициализирован"}
+        
+        # Подготавливаем сообщения
+        messages = []
+        
+        # Системный промпт
+        if include_context:
+            context = self.get_current_context()
+            system_prompt = f"""{self.system_prompt}
+
+Текущий контекст системы:
+- ОС: {context['system_info']['os']} {context['system_info']['release']}
+- Текущая папка: {context['current_directory']}
+- CPU: {context['system_stats'].get('cpu_percent', 0)}%
+- Память: {context['system_stats'].get('memory_percent', 0)}%
+- Диск: {context['system_stats'].get('disk_percent', 0)}%
+- Файлы рядом: {', '.join([f.split(' ')[1] for f in context['recent_files'][:3]]) if context['recent_files'] else 'нет'}
+
+Важно: Учитывай этот контекст в ответах. Если пользователь спрашивает о файлах или системе - используй эту информацию."""
+            messages.append({"role": "system", "content": system_prompt})
+        else:
+            messages.append({"role": "system", "content": self.system_prompt})
+        
+        # История беседы (последние N сообщений)
+        for msg in conversation.messages[-self.max_conversation_history:]:
+            if msg["role"] in ["user", "assistant"]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+        
+        # Текущее сообщение
+        messages.append({"role": "user", "content": message})
+        
+        try:
+            # Вызов OpenAI API
+            response = self.openai_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=self.config["settings"]["temperature"],
+                max_tokens=self.config["settings"]["max_tokens"]
+            )
+            
+            content = response.choices[0].message.content
+            tokens = response.usage.total_tokens if response.usage else 0
+            
+            return {
+                "content": content,
+                "model": model,
+                "tokens": tokens,
+                "context_used": include_context
+            }
+            
+        except openai.APIError as e:
+            self.kernel.logger.error(f"OpenAI API error: {e}")
+            return self._process_with_jarvis(conversation, message, include_context)
+            
+        except Exception as e:
+            self.kernel.logger.error(f"OpenAI connection error: {e}")
+            return {"error": f"Ошибка подключения к OpenAI: {str(e)}"}
+    
+    def _process_with_jarvis(self, conversation: AIConversation, message: str, 
+                            include_context: bool) -> Dict[str, Any]:
+        """Обработать с помощью локальной логики Jarvis"""
+        
+        message_lower = message.lower()
+        context = self.get_current_context() if include_context else {}
+        
+        # Определяем тип запроса
+        if any(word in message_lower for word in ["файл", "папк", "директор", "ls", "dir", "покаж", "список"]):
+            return self._handle_file_operations(message, context)
+        
+        elif any(word in message_lower for word in ["систем", "cpu", "памят", "ram", "диск", "процесс"]):
+            return self._handle_system_query(message, context)
+        
+        elif any(word in message_lower for word in ["помощ", "help", "справк", "что ты умеешь"]):
+            return self._handle_help_request()
+        
+        elif any(word in message_lower for word in ["привет", "hello", "здравствуй"]):
+            return self._handle_greeting(context)
+        
+        elif any(word in message_lower for word in ["найди", "search", "поиск"]):
+            return self._handle_search_request(message, context)
+        
+        else:
+            # Общий ответ с использованием контекста
+            return self._handle_general_query(message, context)
+    
+    def _handle_file_operations(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Обработка запросов о файлах"""
+        current_dir = context.get("current_directory", "Неизвестно")
+        recent_files = context.get("recent_files", [])
+        
+        response = f"📁 **Информация о файлах:**\n\n"
+        response += f"Текущая папка: `{current_dir}`\n\n"
+        
+        if recent_files:
+            response += "**Последние файлы:**\n"
+            for file_info in recent_files[:8]:
+                response += f"  {file_info}\n"
+            
+            if len(recent_files) > 8:
+                response += f"\n... и ещё {len(recent_files) - 8} файлов\n"
+        else:
+            response += "Не удалось получить список файлов.\n"
+        
+        response += f"\n**Что я могу сделать с файлами:**\n"
+        response += "• Показать список файлов в текущей папке\n"
+        response += "• Найти файл по имени\n"
+        response += "• Информация о системных ресурсах\n"
+        response += "• Открыть файловый менеджер (используй веб-интерфейс)\n"
+        
+        # Добавляем системные команды
+        if "показа" in message.lower() or "list" in message.lower() or "ls" in message.lower():
+            response += f"\n**Команда для просмотра:** `ls` или используй веб-интерфейс"
+        
+        return {
+            "content": response,
+            "model": "jarvis",
+            "tokens": len(response),
+            "context_used": True
+        }
+    
+    def _handle_system_query(self, message: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Обработка запросов о системе"""
+        stats = context.get("system_stats", {})
+        
+        cpu = stats.get("cpu_percent", 0)
+        memory = stats.get("memory_percent", 0)
+        disk = stats.get("disk_percent", 0)
+        memory_gb = stats.get("memory_available_gb", 0)
+        disk_gb = stats.get("disk_free_gb", 0)
+        processes = stats.get("process_count", 0)
+        uptime = stats.get("uptime", 0)
+        
+        # Форматируем время работы
+        if uptime:
+            hours = int(uptime // 3600)
+            minutes = int((uptime % 3600) // 60)
+            uptime_str = f"{hours}ч {minutes}м"
+        else:
+            uptime_str = "Неизвестно"
+        
+        response = "💻 **Статус системы:**\n\n"
+        
+        # Анализ состояния
+        issues = []
+        if cpu > 80:
+            issues.append(f"• ⚠️ Высокая загрузка CPU: {cpu:.1f}%")
+        if memory > 80:
+            issues.append(f"• ⚠️ Высокая загрузка памяти: {memory:.1f}%")
+        if disk > 90:
+            issues.append(f"• ⚠️ Мало места на диске: {disk:.1f}%")
+        
+        if issues:
+            response += "**Внимание! Обнаружены проблемы:**\n"
+            response += "\n".join(issues) + "\n\n"
+        
+        # Детальная статистика
+        response += "📊 **Детальная статистика:**\n"
+        response += f"• CPU: {cpu:.1f}%\n"
+        response += f"• Память: {memory:.1f}% ({memory_gb:.1f} ГБ свободно)\n"
+        response += f"• Диск: {disk:.1f}% ({disk_gb:.1f} ГБ свободно)\n"
+        response += f"• Процессы: {processes}\n"
+        response += f"• Время работы: {uptime_str}\n"
+        
+        # Советы
+        if "совет" in message.lower() or "recommend" in message.lower():
+            response += f"\n💡 **Рекомендации:**\n"
+            if cpu > 70:
+                response += "• Проверьте фоновые процессы (Task Manager)\n"
+            if memory > 75:
+                response += "• Закройте неиспользуемые программы\n"
+            if disk > 85:
+                response += "• Очистите временные файлы\n"
+        
+        return {
+            "content": response,
+            "model": "jarvis",
+            "tokens": len(response),
+            "context_used": True
+        }
+    
+    def _handle_help_request(self) -> Dict[str, Any]:
+        """Обработка запроса помощи"""
+        response = """🤖 **JARVIS AI Assistant - Справка**
+
+**Что я умею:**
+📁 **Работа с файлами:**
+  • Показать файлы в текущей папке
+  • Поиск файлов по имени
+  • Информация о системных ресурсах
+
+💻 **Мониторинг системы:**
+  • Статус CPU, памяти, диска
+  • Количество процессов
+  • Время работы системы
+  • Рекомендации по оптимизации
+
+🔍 **Поиск и анализ:**
+  • Поиск в файловой системе
+  • Анализ системных логов
+  • Помощь с ошибками
+
+🧠 **AI возможности:**
+  • Ответы на вопросы (через OpenAI GPT)
+  • Объяснение технических концепций
+  • Помощь с программированием
+  • Анализ проблем
+
+**Как использовать:**
+1. Спроси о файлах: "Какие файлы в текущей папке?"
+2. Проверь систему: "Как работает система?"
+3. Попроси помощи: "Помоги с ошибкой Python"
+4. Используй контекст: Я знаю твою текущую папку и состояние системы
+
+**Интерфейсы:**
+• Веб-интерфейс: http://localhost:8080
+• TUI интерфейс: Запусти с опцией 2
+• CLI: Используй команды в основном меню
+
+**Настройки:**
+• API ключ OpenAI в config.json
+• Температура ответов: 0.7
+• Максимальная история: 20 сообщений
+
+Примеры запросов:
+"Покажи файлы на рабочем столе"
+"Какая загрузка CPU?"
+"Помоги найти документ по названию"
+"Объясни ошибку в коде Python"
+"""
+        
+        return {
+            "content": response,
+            "model": "jarvis",
+            "tokens": len(response),
+            "context_used": False
+        }
+    
+    def _handle_greeting(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Приветствие"""
+        import random
+        
+        greetings = [
+            "Привет! Я JARVIS, ваш AI помощник. Готов помочь с файлами и системой.",
+            "Здравствуйте! JARVIS к вашим услугам. Что вас интересует?",
+            "Приветствую! Я интеллектуальный помощник JARVIS. Чем могу помочь?",
+            "Добрый день! JARVIS онлайн. Вижу вашу систему работает нормально.",
+            "Привет! Готов работать. Вижу вы в папке {}. Нужна помощь с файлами?".format(context.get("current_directory", "текущей"))
+        ]
+        
+        response = random.choice(greetings)
+        
+        # Добавляем системный контекст
+        stats = context.get("system_stats", {})
+        if stats:
+            cpu = stats.get("cpu_percent", 0)

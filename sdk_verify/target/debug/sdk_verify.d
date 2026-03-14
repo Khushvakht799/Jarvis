@@ -1,0 +1,1 @@
+C:\Users\Usuario\Jarvis\sdk_verify\target\debug\sdk_verify.exe: C:\Users\Usuario\Jarvis\binvg_sdk\src\adapter.rs C:\Users\Usuario\Jarvis\binvg_sdk\src\core.rs C:\Users\Usuario\Jarvis\binvg_sdk\src\lib.rs C:\Users\Usuario\Jarvis\binvg_sdk\src\pipeline.rs C:\Users\Usuario\Jarvis\sdk_verify\src\main.rs

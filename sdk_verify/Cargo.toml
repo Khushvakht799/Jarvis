@@ -1,0 +1,8 @@
+﻿[package]
+name = "sdk_verify"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+binvg_sdk = { path = "C:/Users/Usuario/Jarvis/binvg_sdk" }
+anyhow = "1.0"
